@@ -6,13 +6,14 @@ Interface web locale pour le projet Artificialia-Prompt, composée de deux panne
 
 ### Panneau de Chat (Gauche)
 - Interface de chat classique avec Artificialia
-- Saisie utilisateur et affichage des réponses de l'IA
+- Envoi des prompts via l'API HTTP (POST /prompt)
+- Réception des réponses via WebSocket en temps réel
 - Historique complet du dialogue
-- Indicateur de frappe pendant la génération de réponse
-- Réponses simulées pour les tests
+- Indicateur de connexion WebSocket
+- Gestion des erreurs de connexion
 
 ### Panneau de Logs (Droite)
-- Affichage en temps réel des "pensées" du cerveau d'Artificialia
+- Affichage en temps réel des logs reçus via WebSocket
 - Défilement automatique des logs
 - Types de logs colorés :
   - **Système** (gris) : État des composants, synchronisation
@@ -41,6 +42,28 @@ npm run dev
 ```
 
 L'interface sera disponible à l'adresse : http://localhost:5173/
+
+## Configuration API
+
+L'application se connecte par défaut à l'API Artificialia sur `localhost:8000`. 
+Pour modifier la configuration, éditez le fichier `src/config/api.js` :
+
+```javascript
+const API_CONFIG = {
+  baseUrl: 'http://localhost:8000',
+  websocketUrl: 'ws://localhost:8000/logs',
+  endpoints: {
+    prompt: '/prompt'
+  }
+};
+```
+
+## Utilisation avec Artificialia
+
+1. **Démarrer le serveur Artificialia** (port 8000 par défaut)
+2. **Lancer l'interface** : `npm run dev`
+3. **Vérifier la connexion** : L'indicateur de statut doit afficher "Connecté"
+4. **Interagir** : Tapez vos questions dans le chat et observez les logs en temps réel
 
 ## Scripts disponibles
 
@@ -73,11 +96,11 @@ src/
 
 ## Fonctionnement
 
-L'interface utilise actuellement des données simulées :
+L'interface se connecte en temps réel à l'API Artificialia :
 
-- **Chat** : Réponses aléatoires d'Artificialia avec délai réaliste
-- **Logs** : Génération automatique de logs de différents types
-- **WebSocket** : Simulation de connexion temps réel
+- **Chat** : Envoi des prompts via POST /prompt et réception des réponses via WebSocket
+- **Logs** : Réception en temps réel des logs de traitement via WebSocket
+- **WebSocket** : Connexion native à ws://localhost:8000/logs pour les logs et réponses
 
 ## Responsive Design
 
@@ -87,12 +110,13 @@ L'interface s'adapte automatiquement aux différentes tailles d'écran :
 
 ## Prêt pour l'intégration
 
-L'architecture est conçue pour faciliter l'intégration avec l'API réelle d'Artificialia :
+✅ **Intégration native avec Artificialia** :
 
-- Les fonctions de mock peuvent être facilement remplacées par des appels API
-- La structure WebSocket est prête à être connectée
-- Les types de logs sont extensibles
-- L'interface utilisateur est optimisée pour une utilisation intensive
+- Connexion HTTP/WebSocket directe à l'API Artificialia
+- Envoi des prompts via POST /prompt 
+- Réception des réponses et logs via WebSocket ws://localhost:8000/logs
+- Configuration API flexible pour le développement
+- Gestion des erreurs de connexion et reconnexion automatique
 
 ## Développement
 
