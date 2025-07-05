@@ -14,12 +14,35 @@
   padding: 16px;
   text-align: center;
   border-bottom: 1px solid #357abd;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .chat-header h2 {
   margin: 0;
   font-size: 1.2rem;
   font-weight: 600;
+}
+
+.connection-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.status-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #dc3545;
+  display: inline-block;
+}
+
+.connection-status.connected .status-indicator {
+  background: #28a745;
 }
 
 .chat-messages {

@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import './ChatPanel.css';
+import apiService from '../services/api.js';
+import wsService from '../services/websocket.js';
 
 const ChatPanel = () => {
   const [messages, setMessages] = useState([
@@ -7,6 +9,7 @@ const ChatPanel = () => {
   ]);
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isConnected, setIsConnected] = useState(false);
   const messagesEndRef = useRef(null);
 
   const scrollToBottom = () => {
@@ -16,6 +19,53 @@ const ChatPanel = () => {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // WebSocket connection and message handling
+  useEffect(() => {
+    const handleConnect = () => {
+      setIsConnected(true);
+    };
+
+    const handleDisconnect = () => {
+      setIsConnected(false);
+    };
+
+    const handleMessage = (data) => {
+      // Handle AI response messages
+      if (data.type === 'response' && data.content) {
+        const aiResponse = {
+          id: Date.now() + Math.random(),
+          type: 'ai',
+          content: data.content
+        };
+        setMessages(prev => [...prev, aiResponse]);
+        setIsLoading(false);
+      }
+    };
+
+    const handleError = (error) => {
+      console.error('WebSocket error in ChatPanel:', error);
+      setIsConnected(false);
+      setIsLoading(false);
+    };
+
+    // Add event listeners
+    wsService.addEventListener('connect', handleConnect);
+    wsService.addEventListener('disconnect', handleDisconnect);
+    wsService.addEventListener('message', handleMessage);
+    wsService.addEventListener('error', handleError);
+
+    // Connect to WebSocket
+    wsService.connect();
+
+    // Cleanup function
+    return () => {
+      wsService.removeEventListener('connect', handleConnect);
+      wsService.removeEventListener('disconnect', handleDisconnect);
+      wsService.removeEventListener('message', handleMessage);
+      wsService.removeEventListener('error', handleError);
+    };
+  }, []);
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
@@ -28,37 +78,36 @@ const ChatPanel = () => {
     };
 
     setMessages(prev => [...prev, userMessage]);
+    const promptText = inputMessage;
     setInputMessage('');
     setIsLoading(true);
 
-    // Simulate API call delay
-    setTimeout(() => {
-      const aiResponse = {
+    try {
+      // Send prompt to API
+      await apiService.sendPrompt(promptText);
+      // Response will come through WebSocket
+    } catch (error) {
+      console.error('Error sending message:', error);
+      setIsLoading(false);
+      
+      // Add error message to chat
+      const errorMessage = {
         id: Date.now() + 1,
         type: 'ai',
-        content: generateMockResponse()
+        content: 'Désolé, je ne peux pas répondre pour le moment. Veuillez réessayer plus tard.'
       };
-      setMessages(prev => [...prev, aiResponse]);
-      setIsLoading(false);
-    }, 1000 + Math.random() * 2000);
-  };
-
-  const generateMockResponse = () => {
-    const responses = [
-      "Je réfléchis à votre question... C'est une perspective intéressante.",
-      "Laissez-moi analyser cela. Plusieurs approches sont possibles.",
-      "Excellente question ! Je vais explorer différentes dimensions de ce sujet.",
-      "Je comprends votre point de vue. Voici ma réflexion sur le sujet.",
-      "C'est un défi stimulant. Permettez-moi d'y réfléchir étape par étape.",
-      "Votre question soulève des points importants. Voici mon analyse."
-    ];
-    return responses[Math.floor(Math.random() * responses.length)];
+      setMessages(prev => [...prev, errorMessage]);
+    }
   };
 
   return (
     <div className="chat-panel">
       <div className="chat-header">
         <h2>Chat avec Artificialia</h2>
+        <div className={`connection-status ${isConnected ? 'connected' : 'disconnected'}`}>
+          <span className="status-indicator"></span>
+          {isConnected ? 'Connecté' : 'Déconnecté'}
+        </div>
       </div>
       
       <div className="chat-messages">
@@ -100,7 +149,7 @@ const ChatPanel = () => {
           <button 
             type="submit" 
             className="send-button"
-            disabled={!inputMessage.trim() || isLoading}
+            disabled={!inputMessage.trim() || isLoading || !isConnected}
           >
             Envoyer
           </button>

@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import './LogsPanel.css';
+import wsService from '../services/websocket.js';
 
 const LogsPanel = () => {
   const [logs, setLogs] = useState([]);
@@ -27,95 +28,77 @@ const LogsPanel = () => {
     scrollToBottom();
   }, [logs, scrollToBottom]);
 
-  const generateMockLog = useCallback(() => {
-    const typeKeys = Object.keys(logTypes);
-    const randomType = typeKeys[Math.floor(Math.random() * typeKeys.length)];
-    
-    const logContents = {
-      thought: [
-        'Analyse de la requête utilisateur en cours...',
-        'Réflexion sur les implications de la question posée',
-        'Évaluation des différentes perspectives possibles',
-        'Connexion avec les connaissances existantes',
-        'Formulation d\'une réponse cohérente'
-      ],
-      memory: [
-        'Récupération des informations pertinentes en mémoire',
-        'Accès aux données contextuelles précédentes',
-        'Consultation de la base de connaissances',
-        'Mise à jour des références conversationnelles',
-        'Stockage du nouveau contexte'
-      ],
-      decision: [
-        'Choix de la stratégie de réponse optimale',
-        'Sélection des éléments clés à inclure',
-        'Décision du niveau de détail approprié',
-        'Validation de la cohérence logique',
-        'Finalisation de l\'approche communicationnelle'
-      ],
-      analysis: [
-        'Décomposition de la requête en éléments analysables',
-        'Identification des patterns linguistiques',
-        'Évaluation de la complexité sémantique',
-        'Analyse des intentions sous-jacentes',
-        'Classification du type de requête'
-      ],
-      processing: [
-        'Traitement des données d\'entrée',
-        'Application des algorithmes de compréhension',
-        'Génération des alternatives de réponse',
-        'Optimisation du processus de réflexion',
-        'Validation des résultats intermédiaires'
-      ],
-      system: [
-        'Vérification de l\'état des composants',
-        'Mise à jour des paramètres internes',
-        'Synchronisation des modules',
-        'Optimisation des performances',
-        'Maintenance des connexions actives'
-      ]
-    };
-    
-    const contents = logContents[randomType];
-    const randomContent = contents[Math.floor(Math.random() * contents.length)];
-    
-    return {
-      id: Date.now() + Math.random(),
-      type: randomType,
-      content: randomContent,
-      timestamp: new Date()
-    };
-  }, [logTypes]);
-
-  // Simulate WebSocket connection
+  // WebSocket connection and message handling
   useEffect(() => {
-    const connectWebSocket = () => {
+    const handleConnect = () => {
       setIsConnected(true);
-      
-      // Simulate initial connection logs
-      const initialLogs = [
-        { id: 1, type: 'system', content: 'Connexion établie avec le cerveau d\'Artificialia', timestamp: new Date() },
-        { id: 2, type: 'system', content: 'Initialisation des modules de pensée...', timestamp: new Date() },
-        { id: 3, type: 'system', content: 'Prêt à recevoir les prompts', timestamp: new Date() }
-      ];
-      
-      setLogs(initialLogs);
-      
-      // Simulate periodic log messages
-      const interval = setInterval(() => {
-        const newLog = generateMockLog();
-        setLogs(prev => [...prev, newLog]);
-      }, 2000 + Math.random() * 4000);
-
-      return () => {
-        clearInterval(interval);
-        setIsConnected(false);
+      // Add initial connection log
+      const connectionLog = {
+        id: Date.now(),
+        type: 'system',
+        content: 'Connexion établie avec le cerveau d\'Artificialia',
+        timestamp: new Date()
       };
+      setLogs(prev => [...prev, connectionLog]);
     };
 
-    const cleanup = connectWebSocket();
-    return cleanup;
-  }, [generateMockLog]);
+    const handleDisconnect = () => {
+      setIsConnected(false);
+      // Add disconnection log
+      const disconnectionLog = {
+        id: Date.now(),
+        type: 'system',
+        content: 'Connexion perdue avec le cerveau d\'Artificialia',
+        timestamp: new Date()
+      };
+      setLogs(prev => [...prev, disconnectionLog]);
+    };
+
+    const handleMessage = (data) => {
+      // Handle log messages
+      if (data.type === 'log' && data.content) {
+        const logEntry = {
+          id: Date.now() + Math.random(),
+          type: data.logType || 'system',
+          content: data.content,
+          timestamp: new Date(data.timestamp || Date.now())
+        };
+        setLogs(prev => [...prev, logEntry]);
+      }
+    };
+
+    const handleError = (error) => {
+      console.error('WebSocket error in LogsPanel:', error);
+      setIsConnected(false);
+      // Add error log
+      const errorLog = {
+        id: Date.now(),
+        type: 'system',
+        content: 'Erreur de connexion WebSocket',
+        timestamp: new Date()
+      };
+      setLogs(prev => [...prev, errorLog]);
+    };
+
+    // Add event listeners
+    wsService.addEventListener('connect', handleConnect);
+    wsService.addEventListener('disconnect', handleDisconnect);
+    wsService.addEventListener('message', handleMessage);
+    wsService.addEventListener('error', handleError);
+
+    // Connect to WebSocket if not already connected
+    if (!wsService.isConnected) {
+      wsService.connect();
+    }
+
+    // Cleanup function
+    return () => {
+      wsService.removeEventListener('connect', handleConnect);
+      wsService.removeEventListener('disconnect', handleDisconnect);
+      wsService.removeEventListener('message', handleMessage);
+      wsService.removeEventListener('error', handleError);
+    };
+  }, []);
 
   const handleScrollChange = () => {
     if (logsContainerRef.current) {
